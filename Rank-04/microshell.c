@@ -6,7 +6,7 @@
 /*   By: nifromon <nifromon@student.42perpignan.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/24 11:01:06 by nifromon          #+#    #+#             */
-/*   Updated: 2025/10/24 11:41:20 by nifromon         ###   ########.fr       */
+/*   Updated: 2025/10/24 12:25:43 by nifromon         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,7 +31,7 @@ int	cd(char **argv, int i)
 	return (0);
 }
 
-int exec(char **argv, char **env, int i)
+int	exec(char **argv, char **env, int i)
 {
 	int	fd[2];
 	int	pid;
@@ -55,7 +55,7 @@ int exec(char **argv, char **env, int i)
 	}
 	waitpid(pid, &status, 0);
 	if (has_pipe && (dup2(fd[0], 0) == -1 || close(fd[0]) == -1 || close(fd[1]) == -1))
-		return err("error: fatal\n");
+		return (err("error: fatal\n"));
 	return (WIFEXITED(status) && WEXITSTATUS(status));
 }
 
