@@ -8,8 +8,6 @@
 #include <sys/types.h>
 #include <string.h>
 
-//static pid_t child_pid;
-
 void alarm_handler(int sig)
 {
     (void)sig;
@@ -34,7 +32,6 @@ int sandbox(void (*f)(void), unsigned int timeout, bool verbose)
         f();
         exit(0);
     }
-   // child_pid = pid;
     alarm(timeout);
     if(waitpid(pid, &status, 0) == -1)
     {
