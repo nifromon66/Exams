@@ -2,10 +2,10 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-int	ft_popen(const char *file, char *const argv[], char type)
+int ft_popen(const char *file, char *const argv[], char type)
 {
-	int		fd[2];
 	pid_t	pid;
+	int		fd[2];
 
 	if (!file || !argv || (type != 'r' && type != 'w'))
 		return (-1);
@@ -32,7 +32,7 @@ int	ft_popen(const char *file, char *const argv[], char type)
 		}
 		close(fd[0]);
 		close(fd[1]);
-		exevp(file, argv);
+		execvp(file, argv);
 		exit(1);
 	}
 	else
