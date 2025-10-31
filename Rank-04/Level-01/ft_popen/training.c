@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-int ft_popen(const char *file, char *const argv[], char type)
+int	ft_popen(const char *file, char *const argv[], char type)
 {
 	pid_t	pid;
 	int		fd[2];
