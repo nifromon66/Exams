@@ -1,6 +1,6 @@
 #include <unistd.h>
-#include <stdlib.h>
 #include <sys/wait.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -14,29 +14,29 @@ int	picoshell(char **cmds[])
 	while (cmds[i])
 	{
 		if (cmds[i + 1] && pipe(fd) == -1)
-			return 1;
+			return (1);
 		pid = fork();
 		if (pid == -1)
 		{
-			if (cmds[ i+ 1])
+			if (cmds[i + 1])
 			{
 				close(fd[0]);
 				close(fd[1]);
 			}
-			return 1;
+			return (1);
 		}
 		if (pid == 0)
 		{
 			if (last_fd != -1)
 			{
-				if (dup2(last_fd, STDIN_FILENO) == -1)
+				if (dup2(last_fd, 0) == -1)
 					exit(1);
 				close(last_fd);
 			}
 			if (cmds[i + 1])
 			{
 				close(fd[0]);
-				if (dup2(fd[1], STDOUT_FILENO) == -1)
+				if (dup2(fd[1], 1) == -1)
 					exit(1);
 				close(fd[1]);
 			}
@@ -56,5 +56,5 @@ int	picoshell(char **cmds[])
 	{
 		;
 	}
-	return(0);
+	return (0);
 }
