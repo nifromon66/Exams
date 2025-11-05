@@ -1,102 +1,165 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   vbc.c                                              :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: nifromon <nifromon@student.42perpignan.    +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/10/24 16:52:54 by nifromon          #+#    #+#             */
-/*   Updated: 2025/10/24 16:52:57 by nifromon         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
+#include <stdio.h>
+#include <stdlib.h>    // MOD: on utilise <stdlib.h> pour calloc/free au lieu de <malloc.h>
+#include <ctype.h>
 
-#include "vbc.h"
+typedef struct node {
+    enum {
+        ADD,
+        MULTI,
+        VAL
+    }   type;
+    int           val;
+    struct node   *l;
+    struct node   *r;
+} node;
 
-char *s;
+node *new_node(node n)
+{
+    node *ret = calloc(1, sizeof(*ret));  // MODIFIED: sizeof(*ret) instead sizeof(n)
+    if (!ret)
+        return NULL;
+    *ret = n;
+    return ret;
+}
+
+void destroy_tree(node *n)
+{
+    if (!n)
+        return;
+    if (n->type != VAL) {
+        destroy_tree(n->l);
+        destroy_tree(n->r);
+    }
+    free(n);
+}
 
 void unexpected(char c)
 {
-    if(c)
+    if (c)
         printf("Unexpected token '%c'\n", c);
     else
-        printf("Unexpected end of file\n");
+        printf("Unexpected end of input\n");  // MODIFIED: correct message according to the subject
 }
 
-int ft_product()
+/* MODIFIED: accept/expect remises à la signature d’origine, sans global */
+int accept(char **s, char c)
 {
-    int a = ft_factor();
-    int b;
-    while(*s == '*')
-    {
-        s++;
-        b = ft_factor();
-        a = a * b;
+    if (**s == c) {
+        (*s)++;
+        return 1;
     }
-    return(a);
+    return 0;
 }
 
-int ft_sum()
+int expect(char **s, char c)
 {
-    int sum1 = ft_product();
-    int sum2;
-    while(*s == '+')
-    {
-        s++;
-        sum2 = ft_product();
-        sum1 = sum1 + sum2 ;
-    }
-    return(sum1);
-}
-int ft_factor()
-{
-    int n = 0;
-    if(isdigit(*s))
-        return(*s++ - '0');
-    while(*s == '(')
-    {
-        s++;
-        n = ft_sum();
-        s++;
-    }
-    return(n);
+    if (accept(s, c))
+        return 1;
+    unexpected(**s);
+    return 0;
 }
 
-int check_input(char *str)
+/* ADDED: déclarations des fonctions de parsing récursif */
+static node *parse_expr_r(char **s);
+static node *parse_term   (char **s);
+static node *parse_factor (char **s);
+
+/* ADDED: parsing d’un facteur (chiffre ou parenthèse) */
+static node *parse_factor(char **s)
 {
-    int par = 0;
-    int i = 0;
-    char last = 0;
-    while(str[i])
-    {
-        if(str[i] == '(')
-            par++;
-        else if(str[i] == ')')
-            par--;
-        else if (!isdigit(str[i]) && str[i] != '+' && str[i] != '*' && str[i] != '(' && str[i] != ')')
-            return (unexpected(str[i]), 1);
-        if(isdigit(str[i]) && isdigit(str[i+1]))
-            return(unexpected(str[i+1]), 1);
-        if(isdigit(str[i]) && isdigit(str[i+1]))
-            return(unexpected(str[i+1]), 1);
-        last = str[i];
-        i++;
+    if (isdigit((unsigned char)**s)) {
+        node n = { .type = VAL, .val = **s - '0', .l = NULL, .r = NULL };
+        (*s)++;
+        return new_node(n);
     }
-    if(par > 0)
-        return(unexpected('('), 1);
-    if(par < 0)
-        return(unexpected(')'), 1);
-    if(last == '+' || last == '*')
-        return(unexpected(0), 1);
-    return(0);
+    if (accept(s, '(')) {
+        node *e = parse_expr_r(s);
+        if (!e)
+            return NULL;
+        if (!expect(s, ')')) {          // MOD: vérification de la parenthèse fermante
+            destroy_tree(e);
+            return NULL;
+        }
+        return e;
+    }
+    unexpected(**s);
+    return NULL;
+}
+
+/* ADDED: parsing d’un terme (multiplications) */
+static node *parse_term(char **s)
+{
+    node *left = parse_factor(s);
+    if (!left)
+        return NULL;
+    while (accept(s, '*')) {
+        node *right = parse_factor(s);
+        if (!right) {
+            destroy_tree(left);
+            return NULL;
+        }
+        node n = { .type = MULTI, .l = left, .r = right };
+        left = new_node(n);
+        if (!left)
+            return NULL;
+    }
+    return left;
+}
+
+/* ADDED: parsing d’une expression (additions) */
+/* THIS FUNCTION IS A COPY PASTE OF PARSE_TERM, YOU JUST HAVE TO REPLACE '*' by '+' !!!!!*/
+static node *parse_expr_r(char **s)
+{
+    node *left = parse_term(s);
+    if (!left)
+        return NULL;
+    while (accept(s, '+')) {
+        node *right = parse_term(s);
+        if (!right) {
+            destroy_tree(left);
+            return NULL;
+        }
+        node n = { .type = ADD, .l = left, .r = right };
+        left = new_node(n);
+        if (!left)
+            return NULL;
+    }
+    return left;
+}
+
+/* MODIFIED: parse_expr initialise un pointeur local et vérifie la fin de la chaîne */
+node *parse_expr(char *s)
+{
+    char *p = s;
+    node *ret = parse_expr_r(&p);
+    if (!ret)
+        return NULL;
+    if (*p) {
+        unexpected(*p);
+        destroy_tree(ret);
+        return NULL;
+    }
+    return ret;
+}
+
+int eval_tree(node *tree)
+{
+    switch (tree->type) {
+        case ADD:   return eval_tree(tree->l) + eval_tree(tree->r);
+        case MULTI: return eval_tree(tree->l) * eval_tree(tree->r);
+        case VAL:   return tree->val;
+    }
+    return 0;  // should no happen, but who know's ?
 }
 
 int main(int argc, char **argv)
 {
-    if(argc != 2)
-        return(1);
-    if(check_input(argv[1]))
-        return(1);
-    s = argv[1];
-    int res = ft_sum();
-    printf("%d\n", res);
+    if (argc != 2)
+        return 1;
+    node *tree = parse_expr(argv[1]);
+    if (!tree)
+        return 1;
+    printf("%d\n", eval_tree(tree));
+    destroy_tree(tree);
+    return 0;
 }
