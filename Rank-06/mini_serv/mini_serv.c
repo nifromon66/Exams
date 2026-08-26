@@ -113,10 +113,10 @@ void	ft_init_fds(int sockfd, fd_set *set, int *max_fd) {
 	*max_fd = sockfd;
 }
 
-void	ft_init_clients(int	*clients_ids[65536], char **clients_buffers[65536], int *next_id) {
-	bzero(*clients_ids, sizeof(*clients_ids));
+void	ft_init_clients(int	*clients_ids, char **clients_buffers, int *next_id) {
+	bzero(clients_ids, sizeof(int) * 65536);
 	*next_id = 0;
-	bzero(*clients_buffers, sizeof(*clients_buffers));
+	bzero(clients_buffers, sizeof(char *) * 65536);
 	return ;
 }
 
@@ -138,7 +138,7 @@ void	ft_server_broadcast(int mode, int sockfd, int max_fd, int fd, int client_id
 	return ;
 }
 
-void	ft_new_client(int sockfd, int *max_fd, int *next_id, fd_set *set, int *clients_ids[65536]) {
+void	ft_new_client(int sockfd, int *max_fd, int *next_id, fd_set *set, int *clients_ids) {
 	struct sockaddr_in	cli;
 	socklen_t	len = sizeof(cli);
 	int	connfd = accept(sockfd, (struct sockaddr *)&cli, &len);
@@ -147,15 +147,45 @@ void	ft_new_client(int sockfd, int *max_fd, int *next_id, fd_set *set, int *clie
 		if (connfd > *max_fd)
 			*max_fd = connfd;
 
-		*clients_ids[connfd] = *next_id;
-		*next_id++;
+		clients_ids[connfd] = *next_id;
+		(*next_id)++;
 
-		ft_server_broadcast(1, sockfd, *max_fd, connfd, *clients_ids[connfd], set);
+		ft_server_broadcast(1, sockfd, *max_fd, connfd, clients_ids[connfd], set);
 	}
 	return ;
 }
 
-void	ft_clear_client
+void	ft_clear_client(int fd, fd_set *set, char **clients_buffers) {
+	free(clients_buffers[fd]);
+	clients_buffers[fd] = NULL;
+
+	close(fd);
+	FD_CLR(fd, set);
+	return ;
+}
+
+void	ft_client_broadcast(int sockfd, int max_fd, int fd, int client_id, char **msg, fd_set *set) {
+	char	*msg_to_send;
+	msg_to_send = malloc(strlen(*msg) + 64);
+	if (!msg_to_send) {
+		ft_fatal_error(sockfd);
+		exit(1);
+	}
+
+	sprintf(msg_to_send, "client %d: %s", client_id, *msg);
+
+	int	i = 0;
+	while (i <= max_fd) {
+		if (FD_ISSET(i, set)) {
+			if (i != sockfd && i != fd)
+				send(i, msg_to_send, strlen(msg_to_send), 0);
+		}
+		i++;
+	}
+
+	free(msg_to_send);
+	free(*msg);
+}
 
 /*
 	Main
@@ -178,7 +208,7 @@ int	main(int argc, char **argv) {
 	int	next_id;
 	int	clients_ids[65536];
 	char	*clients_buffers[65536];
-	ft_init_clients(&clients_ids, &clients_buffers, &next_id);
+	ft_init_clients(clients_ids, clients_buffers, &next_id);
 
 	while (true) {
 		fd_set	read_set = set;
@@ -188,12 +218,37 @@ int	main(int argc, char **argv) {
 		while (fd <= max_fd) {
 			if (FD_ISSET(fd, &read_set)) {
 				if (fd == sockfd)
-					ft_new_client(sockfd, &max_fd, &next_id, &set, &clients_ids);
+					ft_new_client(sockfd, &max_fd, &next_id, &set, clients_ids);
+				else {
+					char	read_buffer[120000];
+					bzero(read_buffer, sizeof(read_buffer));
+					int	bytes_read = recv(fd, read_buffer, sizeof(read_buffer) - 1, 0);
+					if (bytes_read <= 0) {
+						ft_server_broadcast(2, sockfd, max_fd, fd, clients_ids[fd], &set);
+						ft_clear_client(fd, &set, clients_buffers);
+					}
+					else {
+						clients_buffers[fd] = str_join(clients_buffers[fd], read_buffer);
+						if (!clients_buffers[fd]) {
+							ft_fatal_error(sockfd);
+							exit(1);
+						}
+						char	*msg;
+						int	extract_result;
+						extract_result = extract_message(&clients_buffers[fd], &msg);
+						while (extract_result == 1) {
+							ft_client_broadcast(sockfd, max_fd, fd, clients_ids[fd], &msg, &set);
+							extract_result = extract_message(&clients_buffers[fd], &msg);
+						}
+						if (extract_result == -1) {
+							ft_fatal_error(sockfd);
+							exit(1);
+						}
+					}
+				}
 			}
-			else {
-
-			}
+			fd++;
 		}
 	}
-
+	return (0);
 }
