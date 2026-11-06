@@ -4,16 +4,17 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 /*
 	Personal Includes
 */
-#include <stdlib.h>
 #include <strings.h>
 #include <stdbool.h>
-#include <stdio.h>
+
 
 /*
 	Subject Functions
@@ -86,11 +87,12 @@ void	ft_init_socket(int *sockfd, struct sockaddr_in *serveraddr, char *port) {
 		exit(1);
 	}
 
-	// Assign IP, PORT
 	bzero(serveraddr, sizeof(*serveraddr));
+
+	// Assign IP, PORT
 	serveraddr->sin_family = AF_INET;
-	serveraddr->sin_addr.s_addr = htonl(2130706433); //
-	serveraddr->sin_port = htons(atoi(port)); //
+	serveraddr->sin_addr.s_addr = htonl(2130706433);
+	serveraddr->sin_port = htons(atoi(port));
 
 	// Binding newly created socket to given IP and verification
 	if ((bind(*sockfd, (const struct sockaddr *)serveraddr, sizeof(*serveraddr))) == -1) {
