@@ -1,20 +1,27 @@
+/*
+	Subject Includes
+*/
 #include <string.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+/*
+	Personal Includes
+*/
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/select.h>
+
 
 void	fatal(void) {
 	write(2, "Fatal error\n", 12);
 	exit(1);
 }
 
-void	broadcast(char *msg, int server, int client, int size) {
+void	broadcast(char *message, int server, int client, int size) {
 	for (int fd = 0; fd <= size; fd++) {
 		if (fd != server && fd != client)
-			send(fd, msg, strlen(msg), 0);
+			send(fd, message, strlen(message), 0);
 	}
 }
 
@@ -35,6 +42,9 @@ int	main(int argc, char **argv) {
 		write(2, "Wrong number of arguments\n", 26);
 		exit(1);
 	}
+	/*
+		In Subject
+	*/
 	server = socket(AF_INET, SOCK_STREAM, 0);
 	if (server == -1)
 		fatal();
@@ -46,11 +56,16 @@ int	main(int argc, char **argv) {
 		fatal();
 	if (listen(server, 100) != 0)
 		fatal();
+	/*
+		[...]
+	*/
 	FD_ZERO(&old_fd);
 	FD_ZERO(&new_fd);
 	FD_SET(server, &new_fd);
 	size = server;
-
+	/*
+		Loop
+	*/
 	while (1) {
 		old_fd = new_fd;
 		if (select(size + 1, &old_fd, NULL, NULL, NULL) == -1)
